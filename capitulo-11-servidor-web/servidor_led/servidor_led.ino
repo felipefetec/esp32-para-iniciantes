@@ -1,11 +1,11 @@
 /*
  * Projeto: ESP32 como servidor web — controle de LED pelo celular
- * Livro: ESP32 para Iniciantes — Capítulo 11
+ * Livro: ESP32 Descomplicado — Capítulo 11
  * Autor: Felipe Tavares
  * Hardware: ESP32 DevKit v1 | LED → GPIO4 com resistor 220Ω → GND
  * Biblioteca: WiFi.h e WebServer.h (inclusas no pacote ESP32 da Arduino IDE)
  *
- * O ESP32 serve uma página HTML acessível por qualquer dispositivo
+ * O ESP32 serve uma página HTML simples acessível por qualquer dispositivo
  * na mesma rede WiFi. A página exibe dois botões: ligar e desligar o LED.
  *
  * Se você usar este projeto em publicações, vídeos ou repositórios,
@@ -20,9 +20,14 @@ const char* SENHA = "SenhaDaSuaRede";
 
 #define PINO_LED 4
 
+// Cria o servidor na porta 80 — a porta padrão do protocolo HTTP
 WebServer server(80);
+
+// Estado atual do LED — precisamos guardar para mostrar na página
 bool ledLigado = false;
 
+// Página HTML enviada ao navegador quando alguém acessa o IP do ESP32
+// R"rawliteral(...)rawliteral" é uma string literal crua — sem necessidade de escapar aspas
 const char* paginaHTML = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -49,17 +54,21 @@ const char* paginaHTML = R"rawliteral(
 </html>
 )rawliteral";
 
+// Envia a página principal ao navegador
 void handleRaiz() {
   server.send(200, "text/html", paginaHTML);
 }
 
+// Liga o LED e redireciona de volta para a página principal
 void handleLigar() {
   digitalWrite(PINO_LED, HIGH);
   ledLigado = true;
+  // Redireciona para a raiz — assim o navegador volta para a página de controle
   server.sendHeader("Location", "/");
   server.send(302, "text/plain", "");
 }
 
+// Desliga o LED e redireciona de volta para a página principal
 void handleDesligar() {
   digitalWrite(PINO_LED, LOW);
   ledLigado = false;
@@ -71,8 +80,11 @@ void setup() {
   Serial.begin(115200);
   pinMode(PINO_LED, OUTPUT);
   digitalWrite(PINO_LED, LOW);
+
   delay(1000);
   Serial.println("=== ESP32 Servidor Web ===");
+
+  // Conecta ao WiFi
   WiFi.begin(SSID, SENHA);
   Serial.print("Conectando");
   while (WiFi.status() != WL_CONNECTED) {
@@ -81,14 +93,22 @@ void setup() {
   }
   Serial.println();
   Serial.println("WiFi conectado!");
+
+  // Registra as rotas — cada URL chama uma função específica
   server.on("/",         handleRaiz);
   server.on("/ligar",    handleLigar);
   server.on("/desligar", handleDesligar);
+
+  // Inicia o servidor HTTP
   server.begin();
+
+  // Exibe o IP — é com esse endereço que você vai acessar do celular
   Serial.print("Acesse no navegador: http://");
   Serial.println(WiFi.localIP());
 }
 
 void loop() {
+  // handleClient() verifica se algum navegador fez uma requisição
+  // e chama a função correspondente à rota acessada
   server.handleClient();
 }
